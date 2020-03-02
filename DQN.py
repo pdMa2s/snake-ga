@@ -17,8 +17,8 @@ class DQNAgent(object):
         self.agent_target = 1
         self.agent_predict = 0
         self.learning_rate = 0.0005
-        self.model = self.network()
-        #self.model = self.network("weights.hdf5")
+        # self.model = self.network()
+        self.model = self.network("weights.hdf5")
         self.epsilon = 0
         self.actual = []
         self.memory = []
@@ -59,9 +59,9 @@ class DQNAgent(object):
 
         for i in range(len(state)):
             if state[i]:
-                state[i]=1
+                state[i] = 1
             else:
-                state[i]=0
+                state[i] = 0
 
         return np.asarray(state)
 
@@ -76,13 +76,13 @@ class DQNAgent(object):
 
     def network(self, weights=None):
         model = Sequential()
-        model.add(Dense(output_dim=120, activation='relu', input_dim=11))
+        model.add(Dense(units=120, activation='relu', input_dim=11))
         model.add(Dropout(0.15))
-        model.add(Dense(output_dim=120, activation='relu'))
+        model.add(Dense(units=120, activation='relu'))
         model.add(Dropout(0.15))
-        model.add(Dense(output_dim=120, activation='relu'))
+        model.add(Dense(units=120, activation='relu'))
         model.add(Dropout(0.15))
-        model.add(Dense(output_dim=3, activation='softmax'))
+        model.add(Dense(units=3, activation='softmax'))
         opt = Adam(self.learning_rate)
         model.compile(loss='mse', optimizer=opt)
 

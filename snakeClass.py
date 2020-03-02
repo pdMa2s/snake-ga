@@ -5,7 +5,7 @@ import numpy as np
 from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
+import sys
 
 # Set options to activate or deactivate the game view, and its speed
 display_option = False
@@ -16,10 +16,11 @@ pygame.font.init()
 class Game:
 
     def __init__(self, game_width, game_height):
+        pygame.init()
         pygame.display.set_caption('SnakeGen')
         self.game_width = game_width
         self.game_height = game_height
-        self.gameDisplay = pygame.display.set_mode((game_width, game_height+60))
+        self.gameDisplay = pygame.display.set_mode((game_width, game_height+60), depth=32)
         self.bg = pygame.image.load("img/background.png")
         self.crash = False
         self.player = Player(self)
@@ -50,7 +51,7 @@ class Player(object):
             self.position[-1][0] = x
             self.position[-1][1] = y
 
-    def do_move(self, move, x, y, game, food,agent):
+    def do_move(self, move, x, y, game, food):
         move_array = [self.x_change, self.y_change]
 
         if self.eaten:
@@ -58,15 +59,15 @@ class Player(object):
             self.position.append([self.x, self.y])
             self.eaten = False
             self.food = self.food + 1
-        if np.array_equal(move ,[1, 0, 0]):
+        if np.array_equal(move, [1, 0, 0]):
             move_array = self.x_change, self.y_change
-        elif np.array_equal(move,[0, 1, 0]) and self.y_change == 0:  # right - going horizontal
+        elif np.array_equal(move, [0, 1, 0]) and self.y_change == 0:  # right - going horizontal
             move_array = [0, self.x_change]
-        elif np.array_equal(move,[0, 1, 0]) and self.x_change == 0:  # right - going vertical
+        elif np.array_equal(move, [0, 1, 0]) and self.x_change == 0:  # right - going vertical
             move_array = [-self.y_change, 0]
         elif np.array_equal(move, [0, 0, 1]) and self.y_change == 0:  # left - going horizontal
             move_array = [0, -self.x_change]
-        elif np.array_equal(move,[0, 0, 1]) and self.x_change == 0:  # left - going vertical
+        elif np.array_equal(move, [0, 0, 1]) and self.x_change == 0:  # left - going vertical
             move_array = [self.y_change, 0]
         self.x_change, self.y_change = move_array
         self.x = x + self.x_change
@@ -82,7 +83,7 @@ class Player(object):
         self.position[-1][0] = x
         self.position[-1][1] = y
 
-        if game.crash == False:
+        if not game.crash:
             for i in range(food):
                 x_temp, y_temp = self.position[len(self.position) - 1 - i]
                 game.gameDisplay.blit(self.image, (x_temp, y_temp))
@@ -154,9 +155,9 @@ def update_screen():
 
 
 def initialize_game(player, game, food, agent):
-    state_init1 = agent.get_state(game, player, food)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    state_init1 = agent.get_state(game, player, food)  # [0 0 0 0 1 0 0 0 1 1 0]
     action = [1, 0, 0]
-    player.do_move(action, player.x, player.y, game, food, agent)
+    player.do_move(action, player.x, player.y, game, food)
     state_init2 = agent.get_state(game, player, food)
     reward1 = agent.set_reward(player, game.crash)
     agent.remember(state_init1, action, reward1, state_init2, game.crash)
@@ -169,63 +170,88 @@ def plot_seaborn(array_counter, array_score):
     ax.set(xlabel='games', ylabel='score')
     plt.show()
 
+
 def run():
-    pygame.init()
     agent = DQNAgent()
     counter_games = 0
     score_plot = []
     counter_plot =[]
     record = 0
-    while counter_games < 150:
-        # Initialize classes
-        game = Game(440, 440)
-        player1 = game.player
-        food1 = game.food
+    try:
+        while True:
+            # Initialize classes
+            game = Game(440, 440)
+            player1 = game.player
+            food1 = game.food
 
-        # Perform first move
-        initialize_game(player1, game, food1, agent)
-        if display_option:
-            display(player1, food1, game, record)
-
-        while not game.crash:
-            #agent.epsilon is set to give randomness to actions
-            agent.epsilon = 80 - counter_games
-            
-            #get old state
-            state_old = agent.get_state(game, player1, food1)
-            
-            #perform random actions based on agent.epsilon, or choose the action
-            if randint(0, 200) < agent.epsilon:
-                final_move = to_categorical(randint(0, 2), num_classes=3)
-            else:
-                # predict action based on the old state
-                prediction = agent.model.predict(state_old.reshape((1,11)))
-                final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
-                
-            #perform new move and get new state
-            player1.do_move(final_move, player1.x, player1.y, game, food1, agent)
-            state_new = agent.get_state(game, player1, food1)
-            
-            #set treward for the new state
-            reward = agent.set_reward(player1, game.crash)
-            
-            #train short memory base on the new action and state
-            agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)
-            
-            # store the new data into a long term memory
-            agent.remember(state_old, final_move, reward, state_new, game.crash)
-            record = get_record(game.score, record)
+            # Perform first move
+            initialize_game(player1, game, food1, agent)
             if display_option:
                 display(player1, food1, game, record)
-                pygame.time.wait(speed)
-        
-        agent.replay_new(agent.memory)
-        counter_games += 1
-        print('Game', counter_games, '      Score:', game.score)
-        score_plot.append(game.score)
-        counter_plot.append(counter_games)
+
+            while not game.crash:
+                # agent.epsilon is set to give randomness to actions
+                agent.epsilon = 80 - counter_games
+
+                # get old state
+                state_old = agent.get_state(game, player1, food1)
+
+                # perform random actions based on agent.epsilon, or choose the action
+                if randint(0, 200) < agent.epsilon:
+                    final_move = to_categorical(randint(0, 2), num_classes=3)
+                else:
+                    # predict action based on the old state
+                    prediction = agent.model.predict(state_old.reshape((1, 11)))
+                    final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
+
+                # perform new move and get new state
+                player1.do_move(final_move, player1.x, player1.y, game, food1)
+                state_new = agent.get_state(game, player1, food1)
+
+                # set treward for the new state
+                reward = agent.set_reward(player1, game.crash)
+
+                # train short memory base on the new action and state
+                agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)
+
+                # store the new data into a long term memory
+                agent.remember(state_old, final_move, reward, state_new, game.crash)
+                record = get_record(game.score, record)
+                if display_option:
+                    display(player1, food1, game, record)
+                    pygame.time.wait(speed)
+
+            agent.replay_new(agent.memory)
+            counter_games += 1
+            print('Game', counter_games, '      Score:', game.score)
+            score_plot.append(game.score)
+            counter_plot.append(counter_games)
+    except:
+        print("Training stopped!")
+
     agent.model.save_weights('weights.hdf5')
     plot_seaborn(counter_plot, score_plot)
 
 
-run()
+if __name__ == '__main__':
+    run()
+    # agent = DQNAgent()
+    # counter_games = 0
+    # score_plot = []
+    # counter_plot = []
+    # record = 0
+    # game = Game(440, 440)
+    # player1 = game.player
+    # food1 = game.food
+    #
+    # # Perform first move
+    # initialize_game(player1, game, food1, agent)
+    #
+    # while not game.crash:
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.QUIT:
+    #             sys.exit()
+    #     game.gameDisplay.fill((255, 255, 255))
+    #     game.gameDisplay.blit(game.bg, (0, 0))
+    #
+    #     pygame.display.flip()
