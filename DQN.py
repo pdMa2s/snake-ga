@@ -5,6 +5,15 @@ import random
 import numpy as np
 import pandas as pd
 from operator import add
+import tensorflow as tf
+
+
+# Set CPU as available physical device
+my_devices = tf.config.experimental.list_physical_devices(device_type='CPU')
+tf.config.experimental.set_visible_devices(devices= my_devices, device_type='CPU')
+
+# To find out which devices your operations and tensors are assigned to
+tf.debugging.set_log_device_placement(True)
 
 
 class DQNAgent(object):
@@ -17,7 +26,7 @@ class DQNAgent(object):
         self.agent_target = 1
         self.agent_predict = 0
         self.learning_rate = 0.0005
-        # self.model = self.network()
+        self.model = self.network()
         self.model = self.network("weights.hdf5")
         self.epsilon = 0
         self.actual = []
@@ -94,10 +103,11 @@ class DQNAgent(object):
         self.memory.append((state, action, reward, next_state, done))
 
     def replay_new(self, memory):
-        if len(memory) > 1000:
-            minibatch = random.sample(memory, 1000)
-        else:
-            minibatch = memory
+        # if len(memory) > 1000:
+        #     minibatch = random.sample(memory, 1000)
+        # else:
+        #     minibatch = memory
+        minibatch = memory
         for state, action, reward, next_state, done in minibatch:
             target = reward
             if not done:
